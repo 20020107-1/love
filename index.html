@@ -424,9 +424,9 @@
       const centerX = width / 2;
       const centerY = heartCenterY();
       const scale = width < 700
-        ? Math.min(width * 0.0185, height * 0.012)
+        ? Math.min(width * 0.022, height * 0.014)
         : Math.min(width, height) * 0.0205;
-      const total = width < 700 ? 136 : 180;
+      const total = width < 700 ? 176 : 180;
 
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
@@ -444,7 +444,7 @@
         const jitter = Math.sin(frame * 0.018 + i) * 1.8;
         const px = centerX + x * scale + Math.cos(t) * jitter;
         const py = centerY + y * scale + Math.sin(t) * jitter;
-        const radius = (width < 700 ? 2.1 : 2.7) + sparkle * 1.8;
+        const radius = (width < 700 ? 2.7 : 2.7) + sparkle * 1.8;
         const alpha = 0.74 + sparkle * 0.26;
 
         ctx.fillStyle = `rgba(255, 246, 248, ${alpha})`;
@@ -471,9 +471,12 @@
       let fontSize = Math.min(width < 700 ? 230 : 260, height * 0.42);
       const maxTextWidth = width * 0.78;
       const maxTextHeight = height * 0.48;
+      const countdownFont = width < 700
+        ? "Arial, Helvetica, sans-serif"
+        : "\"Arial Black\", Arial, sans-serif";
 
       ctx.save();
-      ctx.font = `900 ${fontSize}px "Arial Black", Arial, sans-serif`;
+      ctx.font = `900 ${fontSize}px ${countdownFont}`;
       let metrics = ctx.measureText(digit);
       let textWidth = metrics.width;
       let textHeight = (metrics.actualBoundingBoxAscent || fontSize * 0.72) +
@@ -481,7 +484,7 @@
 
       while ((textWidth > maxTextWidth || textHeight > maxTextHeight) && fontSize > 80) {
         fontSize -= 6;
-        ctx.font = `900 ${fontSize}px "Arial Black", Arial, sans-serif`;
+        ctx.font = `900 ${fontSize}px ${countdownFont}`;
         metrics = ctx.measureText(digit);
         textWidth = metrics.width;
         textHeight = (metrics.actualBoundingBoxAscent || fontSize * 0.72) +
@@ -492,7 +495,7 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.globalAlpha = alpha;
-      ctx.font = `900 ${fontSize}px "Arial Black", Arial, sans-serif`;
+      ctx.font = `900 ${fontSize}px ${countdownFont}`;
       const baselineOffset = ((metrics.actualBoundingBoxAscent || fontSize * 0.72) -
         (metrics.actualBoundingBoxDescent || fontSize * 0.22)) / 2;
 
@@ -538,7 +541,6 @@
 
       ctx.globalCompositeOperation = "lighter";
       ctx.lineCap = "round";
-      drawDottedHeartOutline();
       for (const particle of particles) {
         particle.update();
         particle.draw();
@@ -549,6 +551,7 @@
         burst.update();
         burst.draw();
       }
+      drawDottedHeartOutline();
 
       ctx.globalCompositeOperation = "source-over";
       autoBalloons();

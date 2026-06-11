@@ -11,16 +11,12 @@
       box-sizing: border-box;
     }
 
-    html,
-    body {
+    html, body {
       width: 100%;
       height: 100%;
-      /* 使用 dvh 解决 iOS 工具栏遮挡问题 */
-      height: 100dvh;
       overflow: hidden;
       background: #000;
-      touch-action: none;
-      overscroll-behavior: none;
+      touch-action: manipulation;
       font-family: "Arial Rounded MT Bold", "Microsoft YaHei", Arial, sans-serif;
     }
 
@@ -28,24 +24,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background:
-        radial-gradient(circle at 50% 56%, rgba(255, 45, 105, 0.08), transparent 34%),
-        radial-gradient(circle at 50% 48%, rgba(255, 36, 112, 0.16), transparent 30%),
-        radial-gradient(circle at 50% 82%, rgba(255, 210, 95, 0.08), transparent 24%),
-        #000;
+      background: #000;
     }
 
     canvas {
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
       display: block;
-      width: 100%;
-      height: 100%;
-      width: 100dvw;
-      height: 100dvh;
-    }
-
-    #heartCanvas {
       z-index: 1;
     }
 
@@ -62,15 +48,15 @@
       max-width: 720px;
       color: #fff;
       font-family: "Comic Sans MS", "Arial Rounded MT Bold", "Microsoft YaHei", cursive;
-      font-size: clamp(38px, 13vw, 56px);
+      font-size: 13vw;
       font-weight: 900;
       letter-spacing: 0;
       line-height: 1;
       opacity: 0;
       pointer-events: none;
       text-align: center;
-      /* 改为 normal，允许文字自动换行 */
       white-space: normal;
+      word-break: keep-all;
       text-shadow:
         0 0 12px rgba(255, 255, 255, 0.95),
         0 0 28px rgba(255, 93, 163, 0.95),
@@ -84,10 +70,8 @@
       transform: translate(-50%, -50%) scale(1);
     }
 
-    @media (max-width: 520px) {
-      .love-text {
-        font-size: clamp(38px, 13vw, 54px);
-      }
+    @media (min-width: 421px) {
+      .love-text { font-size: 56px; }
     }
   </style>
 </head>
@@ -97,89 +81,81 @@
   <div class="love-text" id="loveText">I ❤ YOU</div>
 
   <script>
-    const heartCanvas = document.getElementById("heartCanvas");
-    const sceneCanvas = document.getElementById("scene");
-    const loveText = document.getElementById("loveText");
-    const heartCtx = heartCanvas.getContext("2d");
-    const sceneCtx = sceneCanvas.getContext("2d");
+    (function () {
+      var heartCanvas = null;
+      var sceneCanvas = null;
+      var loveText = null;
+      var heartCtx = null;
+      var sceneCtx = null;
+      var width = 0;
+      var height = 0;
+      var count = 3;
+      var counting = true;
+      var frame = 0;
+      var balloons = [];
+      var heartDots = [];
+      var stars = [];
+      var initialized = false;
 
-    let width = 0;
-    let height = 0;
-    let dpr = 1;
-    let count = 3;
-    let counting = true;
-    let frame = 0;
-    let balloons = [];
-    let heartDots = [];
-    let stars = [];
+      function getSize() {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        w = w || document.documentElement.clientWidth || screen.width || 375;
+        h = h || document.documentElement.clientHeight || screen.height || 667;
+        return { w: Math.floor(w), h: Math.floor(h) };
+      }
 
-    function viewportSize() {
-      // 修复1：visualViewport 未就绪时用 innerWidth/Height 兜底
-      const vw = window.visualViewport ? window.visualViewport.width : 0;
-      const vh = window.visualViewport ? window.visualViewport.height : 0;
-      // 修复2：如果 visualViewport 返回 0，用 window inner 尺寸
-      const w = vw > 0 ? vw : window.innerWidth;
-      const h = vh > 0 ? vh : window.innerHeight;
-      return { width: Math.floor(w), height: Math.floor(h) };
-    }
+      function resize() {
+        var s = getSize();
+        if (s.w <= 0 || s.h <= 0) return;
+        width = s.w;
+        height = s.h;
 
-    function resizeCanvas() {
-      const size = viewportSize();
-      // 修复3：尺寸为 0 时跳过，等待下次 resize 事件
-      if (size.width <= 0 || size.height <= 0) return;
-      
-      width = size.width;
-      height = size.height;
-      dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+        heartCanvas.width = width;
+        heartCanvas.height = height;
+        heartCanvas.style.width = width + "px";
+        heartCanvas.style.height = height + "px";
 
-      heartCanvas.width = Math.floor(width * dpr);
-      heartCanvas.height = Math.floor(height * dpr);
-      sceneCanvas.width = Math.floor(width * dpr);
-      sceneCanvas.height = Math.floor(height * dpr);
+        sceneCanvas.width = width;
+        sceneCanvas.height = height;
+        sceneCanvas.style.width = width + "px";
+        sceneCanvas.style.height = height + "px";
 
-      heartCanvas.style.width = `${width}px`;
-      heartCanvas.style.height = `${height}px`;
-      sceneCanvas.style.width = `${width}px`;
-      sceneCanvas.style.height = `${height}px`;
+        buildScene();
+      }
 
-      heartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      sceneCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      buildScene();
-    }
+      function buildScene() {
+        var w = width || 375;
+        var h = height || 667;
+        var scale = Math.min(w * 0.022, h * 0.0135);
+        var total = 190;
+        heartDots = [];
+        for (var i = 0; i < total; i++) {
+          var t = (i / total) * Math.PI * 2;
+          var x = 16 * Math.pow(Math.sin(t), 3);
+          var y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+          heartDots.push({
+            x: w / 2 + x * scale,
+            y: h / 2 + y * scale,
+            r: 2.3 + Math.random() * 2.2,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+        stars = [];
+        for (var j = 0; j < 38; j++) {
+          stars.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            r: 0.8 + Math.random() * 1.7,
+            phase: Math.random() * Math.PI * 2,
+            alpha: 0.24 + Math.random() * 0.5
+          });
+        }
+        balloons = balloons.slice(-18);
+      }
 
-    function buildScene() {
-      const scale = Math.min(width * 0.022, height * 0.0135);
-      const total = 190;
-      heartDots = Array.from({ length: total }, (_, index) => {
-        const t = (index / total) * Math.PI * 2;
-        const x = 16 * Math.pow(Math.sin(t), 3);
-        const y = -(
-          13 * Math.cos(t) -
-          5 * Math.cos(2 * t) -
-          2 * Math.cos(3 * t) -
-          Math.cos(4 * t)
-        );
-        return {
-          x: width / 2 + x * scale,
-          y: height / 2 + y * scale,
-          r: 2.3 + Math.random() * 2.2,
-          phase: Math.random() * Math.PI * 2
-        };
-      });
-
-      stars = Array.from({ length: 38 }, () => ({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        r: 0.8 + Math.random() * 1.7,
-        phase: Math.random() * Math.PI * 2,
-        alpha: 0.24 + Math.random() * 0.5
-      }));
-      balloons = balloons.slice(-18);
-    }
-
-    class Balloon {
-      constructor() {
-        const colors = ["#ff4f8f", "#ff77aa", "#ffd263", "#fff1f5"];
+      function Balloon() {
+        var colors = ["#ff4f8f", "#ff77aa", "#ffd263", "#fff1f5"];
         this.x = Math.random() * width;
         this.y = height + 40 + Math.random() * 160;
         this.r = 15 + Math.random() * 17;
@@ -189,7 +165,7 @@
         this.phase = Math.random() * Math.PI * 2;
       }
 
-      update() {
+      Balloon.prototype.update = function () {
         this.phase += 0.025;
         this.x += this.vx + Math.sin(this.phase) * 0.2;
         this.y += this.vy;
@@ -197,123 +173,164 @@
           this.y = height + 70 + Math.random() * 120;
           this.x = Math.random() * width;
         }
+      };
+
+      Balloon.prototype.draw = function (ctx) {
+        ctx.save();
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(255,255,255,0.62)";
+        ctx.beginPath();
+        ctx.arc(this.x - this.r * 0.35, this.y - this.r * 0.35, this.r * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.46)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y + this.r);
+        ctx.quadraticCurveTo(this.x - 8, this.y + this.r + 28, this.x + 2, this.y + this.r + 52);
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      function drawCountdown() {
+        if (width <= 0 || height <= 0) return;
+        heartCtx.clearRect(0, 0, width, height);
+        heartCtx.save();
+        heartCtx.textAlign = "center";
+        heartCtx.textBaseline = "middle";
+        heartCtx.font = "900 " + Math.min(width * 0.54, height * 0.28, 220) + "px Arial, sans-serif";
+        heartCtx.shadowColor = "rgba(255,105,180,0.98)";
+        heartCtx.shadowBlur = 36;
+        heartCtx.fillStyle = "#fff";
+        heartCtx.fillText(String(count), width / 2, height / 2);
+        heartCtx.shadowColor = "rgba(255,20,120,0.75)";
+        heartCtx.shadowBlur = 88;
+        heartCtx.fillText(String(count), width / 2, height / 2);
+        heartCtx.restore();
       }
 
-      draw() {
-        sceneCtx.save();
-        sceneCtx.shadowColor = this.color;
-        sceneCtx.shadowBlur = 18;
-        sceneCtx.fillStyle = this.color;
-        sceneCtx.beginPath();
-        sceneCtx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-        sceneCtx.fill();
-
-        sceneCtx.shadowBlur = 0;
-        sceneCtx.fillStyle = "rgba(255,255,255,0.62)";
-        sceneCtx.beginPath();
-        sceneCtx.arc(this.x - this.r * 0.35, this.y - this.r * 0.35, this.r * 0.22, 0, Math.PI * 2);
-        sceneCtx.fill();
-
-        sceneCtx.strokeStyle = "rgba(255,255,255,0.46)";
-        sceneCtx.lineWidth = 1;
-        sceneCtx.beginPath();
-        sceneCtx.moveTo(this.x, this.y + this.r);
-        sceneCtx.quadraticCurveTo(this.x - 8, this.y + this.r + 28, this.x + 2, this.y + this.r + 52);
-        sceneCtx.stroke();
-        sceneCtx.restore();
-      }
-    }
-
-    function drawCountdown() {
-      heartCtx.clearRect(0, 0, width, height);
-      heartCtx.save();
-      heartCtx.textAlign = "center";
-      heartCtx.textBaseline = "middle";
-      heartCtx.font = `900 ${Math.min(width * 0.54, height * 0.28, 220)}px Arial, sans-serif`;
-      heartCtx.shadowColor = "rgba(255,105,180,0.98)";
-      heartCtx.shadowBlur = 36;
-      heartCtx.fillStyle = "#fff";
-      heartCtx.fillText(String(count), width / 2, height / 2);
-      heartCtx.shadowColor = "rgba(255,20,120,0.75)";
-      heartCtx.shadowBlur = 88;
-      heartCtx.fillText(String(count), width / 2, height / 2);
-      heartCtx.restore();
-    }
-
-    function countdown() {
-      drawCountdown();
-      const timer = setInterval(() => {
-        count -= 1;
-        if (count > 0) {
-          drawCountdown();
+      function startCountdown() {
+        if (width <= 0 || height <= 0) {
+          resize();
+        }
+        if (width <= 0 || height <= 0) {
+          setTimeout(startCountdown, 300);
           return;
         }
-        clearInterval(timer);
-        counting = false;
-        heartCtx.clearRect(0, 0, width, height);
-        loveText.classList.add("show");
-      }, 1000);
-    }
-
-    function drawStars() {
-      for (const star of stars) {
-        const pulse = (Math.sin(frame * 0.035 + star.phase) + 1) * 0.5;
-        sceneCtx.fillStyle = `rgba(255, 238, 244, ${star.alpha * (0.35 + pulse * 0.65)})`;
-        sceneCtx.beginPath();
-        sceneCtx.arc(star.x, star.y, star.r * (0.8 + pulse * 0.5), 0, Math.PI * 2);
-        sceneCtx.fill();
+        drawCountdown();
+        var timer = setInterval(function () {
+          count -= 1;
+          if (count > 0) {
+            drawCountdown();
+            return;
+          }
+          clearInterval(timer);
+          counting = false;
+          heartCtx.clearRect(0, 0, width, height);
+          loveText.className = "love-text show";
+        }, 1000);
       }
-    }
 
-    function drawHeartOutline() {
-      sceneCtx.save();
-      sceneCtx.globalCompositeOperation = "lighter";
-      for (let i = 0; i < heartDots.length; i += 1) {
-        const dot = heartDots[i];
-        const pulse = (Math.sin(frame * 0.08 + dot.phase) + 1) * 0.5;
-        const r = dot.r + pulse * 1.5;
-        sceneCtx.fillStyle = `rgba(255, 248, 250, ${0.8 + pulse * 0.2})`;
-        sceneCtx.beginPath();
-        sceneCtx.arc(dot.x, dot.y, r, 0, Math.PI * 2);
-        sceneCtx.fill();
-        if (i % 4 === 0) {
-          sceneCtx.fillStyle = `rgba(255, 78, 138, ${0.3 + pulse * 0.24})`;
-          sceneCtx.beginPath();
-          sceneCtx.arc(dot.x, dot.y, r * 2.5, 0, Math.PI * 2);
-          sceneCtx.fill();
+      function drawStars(ctx) {
+        for (var i = 0; i < stars.length; i++) {
+          var star = stars[i];
+          var pulse = (Math.sin(frame * 0.035 + star.phase) + 1) * 0.5;
+          ctx.fillStyle = "rgba(255, 238, 244, " + (star.alpha * (0.35 + pulse * 0.65)) + ")";
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.r * (0.8 + pulse * 0.5), 0, Math.PI * 2);
+          ctx.fill();
         }
       }
-      sceneCtx.restore();
-    }
 
-    function animate() {
-      frame += 1;
-      sceneCtx.globalCompositeOperation = "source-over";
-      sceneCtx.fillStyle = "rgba(0,0,0,0.18)";
-      sceneCtx.fillRect(0, 0, width, height);
-
-      if (!counting) {
-        drawStars();
-        if (balloons.length < 22 && frame % 18 === 0) balloons.push(new Balloon());
-        for (const balloon of balloons) {
-          balloon.update();
-          balloon.draw();
+      function drawHeartOutline(ctx) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (var i = 0; i < heartDots.length; i++) {
+          var dot = heartDots[i];
+          var pulse = (Math.sin(frame * 0.08 + dot.phase) + 1) * 0.5;
+          var r = dot.r + pulse * 1.5;
+          ctx.fillStyle = "rgba(255, 248, 250, " + (0.8 + pulse * 0.2) + ")";
+          ctx.beginPath();
+          ctx.arc(dot.x, dot.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          if (i % 4 === 0) {
+            ctx.fillStyle = "rgba(255, 78, 138, " + (0.3 + pulse * 0.24) + ")";
+            ctx.beginPath();
+            ctx.arc(dot.x, dot.y, r * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
-        drawHeartOutline();
+        ctx.restore();
       }
 
-      requestAnimationFrame(animate);
-    }
+      function animate() {
+        frame += 1;
+        if (width <= 0 || height <= 0) {
+          requestAnimationFrame(animate);
+          return;
+        }
+        sceneCtx.globalCompositeOperation = "source-over";
+        sceneCtx.fillStyle = "rgba(0,0,0,0.18)";
+        sceneCtx.fillRect(0, 0, width, height);
 
-    window.addEventListener("resize", resizeCanvas);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", resizeCanvas);
-    }
-    document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+        if (!counting) {
+          drawStars(sceneCtx);
+          if (balloons.length < 22 && frame % 18 === 0) {
+            balloons.push(new Balloon());
+          }
+          for (var i = 0; i < balloons.length; i++) {
+            balloons[i].update();
+            balloons[i].draw(sceneCtx);
+          }
+          drawHeartOutline(sceneCtx);
+        }
+        requestAnimationFrame(animate);
+      }
 
-    resizeCanvas();
-    animate();
-    setTimeout(countdown, 650);
+      function init() {
+        if (initialized) return;
+        initialized = true;
+
+        heartCanvas = document.getElementById("heartCanvas");
+        sceneCanvas = document.getElementById("scene");
+        loveText = document.getElementById("loveText");
+        heartCtx = heartCanvas.getContext("2d");
+        sceneCtx = sceneCanvas.getContext("2d");
+
+        resize();
+        if (width <= 0 || height <= 0) {
+          setTimeout(function () {
+            resize();
+            if (width <= 0 || height <= 0) {
+              width = 375;
+              height = 667;
+              resize();
+            }
+            startCountdown();
+          }, 500);
+        } else {
+          setTimeout(startCountdown, 650);
+        }
+
+        animate();
+        window.addEventListener("resize", resize);
+        document.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+      }
+
+      if (typeof WeixinJSBridge !== "undefined" && WeixinJSBridge.invoke) {
+        init();
+      } else {
+        document.addEventListener("WeixinJSBridgeReady", init, false);
+        document.addEventListener("DOMContentLoaded", function () {
+          setTimeout(init, 300);
+        }, false);
+      }
+    })();
   </script>
 </body>
 </html>

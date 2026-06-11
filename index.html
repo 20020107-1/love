@@ -15,6 +15,8 @@
     body {
       width: 100%;
       height: 100%;
+      /* 使用 dvh 解决 iOS 工具栏遮挡问题 */
+      height: 100dvh;
       overflow: hidden;
       background: #000;
       touch-action: none;
@@ -23,8 +25,6 @@
     }
 
     body {
-      position: fixed;
-      inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -41,6 +41,8 @@
       display: block;
       width: 100%;
       height: 100%;
+      width: 100dvw;
+      height: 100dvh;
     }
 
     #heartCanvas {
@@ -67,7 +69,8 @@
       opacity: 0;
       pointer-events: none;
       text-align: center;
-      white-space: nowrap;
+      /* 改为 normal，允许文字自动换行 */
+      white-space: normal;
       text-shadow:
         0 0 12px rgba(255, 255, 255, 0.95),
         0 0 28px rgba(255, 93, 163, 0.95),
@@ -111,15 +114,20 @@
     let stars = [];
 
     function viewportSize() {
-      const viewport = window.visualViewport;
-      return {
-        width: Math.floor(viewport ? viewport.width : window.innerWidth),
-        height: Math.floor(viewport ? viewport.height : window.innerHeight)
-      };
+      // 修复1：visualViewport 未就绪时用 innerWidth/Height 兜底
+      const vw = window.visualViewport ? window.visualViewport.width : 0;
+      const vh = window.visualViewport ? window.visualViewport.height : 0;
+      // 修复2：如果 visualViewport 返回 0，用 window inner 尺寸
+      const w = vw > 0 ? vw : window.innerWidth;
+      const h = vh > 0 ? vh : window.innerHeight;
+      return { width: Math.floor(w), height: Math.floor(h) };
     }
 
     function resizeCanvas() {
       const size = viewportSize();
+      // 修复3：尺寸为 0 时跳过，等待下次 resize 事件
+      if (size.width <= 0 || size.height <= 0) return;
+      
       width = size.width;
       height = size.height;
       dpr = Math.min(window.devicePixelRatio || 1, 1.25);

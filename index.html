@@ -1,336 +1,144 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>I Love You</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-      touch-action: manipulation;
-      font-family: "Arial Rounded MT Bold", "Microsoft YaHei", Arial, sans-serif;
-    }
-
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #000;
-    }
-
-    canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      display: block;
-      z-index: 1;
-    }
-
-    #scene {
-      z-index: 2;
-    }
-
-    .love-text {
-      position: fixed;
-      left: 50%;
-      top: 50%;
-      z-index: 3;
-      width: 96vw;
-      max-width: 720px;
-      color: #fff;
-      font-family: "Comic Sans MS", "Arial Rounded MT Bold", "Microsoft YaHei", cursive;
-      font-size: 13vw;
-      font-weight: 900;
-      letter-spacing: 0;
-      line-height: 1;
-      opacity: 0;
-      pointer-events: none;
-      text-align: center;
-      white-space: normal;
-      word-break: keep-all;
-      text-shadow:
-        0 0 12px rgba(255, 255, 255, 0.95),
-        0 0 28px rgba(255, 93, 163, 0.95),
-        0 0 72px rgba(255, 30, 108, 0.9);
-      transform: translate(-50%, -50%) scale(0.96);
-      transition: opacity 900ms ease, transform 900ms ease;
-    }
-
-    .love-text.show {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-    }
-
-    @media (min-width: 421px) {
-      .love-text { font-size: 56px; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>I Love You</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+canvas{position:fixed;top:0;left:0;display:block}
+#c1{z-index:1}
+#c2{z-index:2}
+#txt{
+  position:fixed;left:50%;top:50%;z-index:3;
+  color:#fff;font:900 13vw/1 "Arial Rounded MT Bold","Microsoft YaHei",sans-serif;
+  opacity:0;pointer-events:none;text-align:center;
+  text-shadow:0 0 12px rgba(255,255,255,.95),0 0 28px rgba(255,93,163,.9),0 0 72px rgba(255,30,108,.9);
+  transform:translate(-50%,-50%) scale(.96);
+  transition:opacity .9s ease,transform .9s ease;
+  white-space:nowrap;
+}
+#txt.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+@media(min-width:560px){#txt{font-size:66px}}
+</style>
 </head>
 <body>
-  <canvas id="heartCanvas"></canvas>
-  <canvas id="scene"></canvas>
-  <div class="love-text" id="loveText">I ❤ YOU</div>
+<canvas id="c1"></canvas>
+<canvas id="c2"></canvas>
+<div id="txt">I ❤ YOU</div>
+<script>
+var w=0,h=0,count=3,counting=true,frame=0,balloons=[],dots=[],stars=[],started=false,ctx1,ctx2,el1,el2,elt;
 
-  <script>
-    (function () {
-      var heartCanvas = null;
-      var sceneCanvas = null;
-      var loveText = null;
-      var heartCtx = null;
-      var sceneCtx = null;
-      var width = 0;
-      var height = 0;
-      var count = 3;
-      var counting = true;
-      var frame = 0;
-      var balloons = [];
-      var heartDots = [];
-      var stars = [];
-      var initialized = false;
+function dim(){
+  var dw=document.documentElement.clientWidth||document.body.clientWidth||0;
+  var dh=document.documentElement.clientHeight||document.body.clientHeight||0;
+  var iw=window.innerWidth||0, ih=window.innerHeight||0;
+  return {w:Math.floor(dw||iw||375),h:Math.floor(dh||ih||667)};
+}
 
-      function getSize() {
-        var w = window.innerWidth;
-        var h = window.innerHeight;
-        w = w || document.documentElement.clientWidth || screen.width || 375;
-        h = h || document.documentElement.clientHeight || screen.height || 667;
-        return { w: Math.floor(w), h: Math.floor(h) };
-      }
+function setup(){
+  var d=dim();
+  if(d.w<=30||d.h<=30) return false;
+  w=d.w; h=d.h;
+  el1.width=w; el1.height=h; el1.style.width=w+'px'; el1.style.height=h+'px';
+  el2.width=w; el2.height=h; el2.style.width=w+'px'; el2.style.height=h+'px';
+  ctx1=el1.getContext('2d');
+  ctx2=el2.getContext('2d');
+  var sc=Math.min(w*.022,h*.0135), total=190;
+  dots=[]; stars=[]; balloons=[];
+  for(var i=0;i<total;i++){
+    var t=(i/total)*Math.PI*2;
+    dots.push({x:w/2+16*Math.pow(Math.sin(t),3)*sc, y:h/2-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))*sc, r:2.3+Math.random()*2.2, ph:Math.random()*Math.PI*2});
+  }
+  for(var j=0;j<38;j++) stars.push({x:Math.random()*w,y:Math.random()*h,r:.8+Math.random()*1.7,ph:Math.random()*Math.PI*2,a:.24+Math.random()*.5});
+  return true;
+}
 
-      function resize() {
-        var s = getSize();
-        if (s.w <= 0 || s.h <= 0) return;
-        width = s.w;
-        height = s.h;
+function Balloon(){
+  var cs=['#ff4f8f','#ff77aa','#ffd263','#fff1f5'];
+  this.x=Math.random()*w; this.y=h+40+Math.random()*160;
+  this.r=15+Math.random()*17; this.color=cs[Math.floor(Math.random()*cs.length)];
+  this.vy=-.65-Math.random()*.85; this.vx=(Math.random()-.5)*.35; this.ph=Math.random()*Math.PI*2;
+}
+Balloon.prototype.upd=function(){this.ph+=.025;this.x+=this.vx+Math.sin(this.ph)*.2;this.y+=this.vy;if(this.y<-70){this.y=h+70+Math.random()*120;this.x=Math.random()*w;}};
+Balloon.prototype.draw=function(c){
+  c.save();c.shadowColor=this.color;c.shadowBlur=18;c.fillStyle=this.color;
+  c.beginPath();c.arc(this.x,this.y,this.r,0,Math.PI*2);c.fill();c.shadowBlur=0;
+  c.fillStyle='rgba(255,255,255,.62)';c.beginPath();c.arc(this.x-this.r*.35,this.y-this.r*.35,this.r*.22,0,Math.PI*2);c.fill();
+  c.strokeStyle='rgba(255,255,255,.46)';c.lineWidth=1;c.beginPath();c.moveTo(this.x,this.y+this.r);
+  c.quadraticCurveTo(this.x-8,this.y+this.r+28,this.x+2,this.y+this.r+52);c.stroke();c.restore();
+};
 
-        heartCanvas.width = width;
-        heartCanvas.height = height;
-        heartCanvas.style.width = width + "px";
-        heartCanvas.style.height = height + "px";
+function drawCountdown(){
+  ctx1.clearRect(0,0,w,h);
+  ctx1.save();ctx1.textAlign='center';ctx1.textBaseline='middle';
+  ctx1.font='900 '+Math.min(w*.54,h*.28,220)+'px Arial,sans-serif';
+  ctx1.shadowColor='rgba(255,105,180,.98)';ctx1.shadowBlur=36;ctx1.fillStyle='#fff';
+  ctx1.fillText(String(count),w/2,h/2);
+  ctx1.shadowColor='rgba(255,20,120,.75)';ctx1.shadowBlur=88;
+  ctx1.fillText(String(count),w/2,h/2);
+  ctx1.restore();
+}
 
-        sceneCanvas.width = width;
-        sceneCanvas.height = height;
-        sceneCanvas.style.width = width + "px";
-        sceneCanvas.style.height = height + "px";
+function goCountdown(){
+  if(!setup()){
+    setTimeout(goCountdown,200);return;
+  }
+  drawCountdown();
+  var t=setInterval(function(){
+    count--;
+    if(count>0){drawCountdown();return;}
+    clearInterval(t);counting=false;
+    ctx1.clearRect(0,0,w,h);elt.className='on';
+  },1000);
+}
 
-        buildScene();
-      }
+function drawStars(c){
+  for(var i=0;i<stars.length;i++){
+    var s=stars[i], p=(Math.sin(frame*.035+s.ph)+1)*.5;
+    c.fillStyle='rgba(255,238,244,'+(s.a*(.35+p*.65))+')';
+    c.beginPath();c.arc(s.x,s.y,s.r*(.8+p*.5),0,Math.PI*2);c.fill();
+  }
+}
 
-      function buildScene() {
-        var w = width || 375;
-        var h = height || 667;
-        var scale = Math.min(w * 0.022, h * 0.0135);
-        var total = 190;
-        heartDots = [];
-        for (var i = 0; i < total; i++) {
-          var t = (i / total) * Math.PI * 2;
-          var x = 16 * Math.pow(Math.sin(t), 3);
-          var y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
-          heartDots.push({
-            x: w / 2 + x * scale,
-            y: h / 2 + y * scale,
-            r: 2.3 + Math.random() * 2.2,
-            phase: Math.random() * Math.PI * 2
-          });
-        }
-        stars = [];
-        for (var j = 0; j < 38; j++) {
-          stars.push({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            r: 0.8 + Math.random() * 1.7,
-            phase: Math.random() * Math.PI * 2,
-            alpha: 0.24 + Math.random() * 0.5
-          });
-        }
-        balloons = balloons.slice(-18);
-      }
+function drawHeart(c){
+  c.save();c.globalCompositeOperation='lighter';
+  for(var i=0;i<dots.length;i++){
+    var d=dots[i], p=(Math.sin(frame*.08+d.ph)+1)*.5, r=d.r+p*1.5;
+    c.fillStyle='rgba(255,248,250,'+(.8+p*.2)+')';
+    c.beginPath();c.arc(d.x,d.y,r,0,Math.PI*2);c.fill();
+    if(i%4===0){c.fillStyle='rgba(255,78,138,'+(.3+p*.24)+')';c.beginPath();c.arc(d.x,d.y,r*2.5,0,Math.PI*2);c.fill();}
+  }
+  c.restore();
+}
 
-      function Balloon() {
-        var colors = ["#ff4f8f", "#ff77aa", "#ffd263", "#fff1f5"];
-        this.x = Math.random() * width;
-        this.y = height + 40 + Math.random() * 160;
-        this.r = 15 + Math.random() * 17;
-        this.color = colors[Math.floor(Math.random() * colors.length)];
-        this.vy = -0.65 - Math.random() * 0.85;
-        this.vx = (Math.random() - 0.5) * 0.35;
-        this.phase = Math.random() * Math.PI * 2;
-      }
+function loop(){
+  frame++;
+  if(w<=0||h<=0){requestAnimationFrame(loop);return;}
+  ctx2.globalCompositeOperation='source-over';
+  ctx2.fillStyle='rgba(0,0,0,.18)';ctx2.fillRect(0,0,w,h);
+  if(!counting){
+    drawStars(ctx2);
+    if(balloons.length<22&&frame%18===0) balloons.push(new Balloon());
+    for(var i=0;i<balloons.length;i++){balloons[i].upd();balloons[i].draw(ctx2);}
+    drawHeart(ctx2);
+  }
+  requestAnimationFrame(loop);
+}
 
-      Balloon.prototype.update = function () {
-        this.phase += 0.025;
-        this.x += this.vx + Math.sin(this.phase) * 0.2;
-        this.y += this.vy;
-        if (this.y < -70) {
-          this.y = height + 70 + Math.random() * 120;
-          this.x = Math.random() * width;
-        }
-      };
+function start(){
+  if(started)return;started=true;
+  el1=document.getElementById('c1');el2=document.getElementById('c2');elt=document.getElementById('txt');
+  setup();
+  setTimeout(function(){
+    if(!setup()){w=375;h=667;setup();}
+    goCountdown();loop();
+  },200);
+}
 
-      Balloon.prototype.draw = function (ctx) {
-        ctx.save();
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 18;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = "rgba(255,255,255,0.62)";
-        ctx.beginPath();
-        ctx.arc(this.x - this.r * 0.35, this.y - this.r * 0.35, this.r * 0.22, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,0.46)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y + this.r);
-        ctx.quadraticCurveTo(this.x - 8, this.y + this.r + 28, this.x + 2, this.y + this.r + 52);
-        ctx.stroke();
-        ctx.restore();
-      };
-
-      function drawCountdown() {
-        if (width <= 0 || height <= 0) return;
-        heartCtx.clearRect(0, 0, width, height);
-        heartCtx.save();
-        heartCtx.textAlign = "center";
-        heartCtx.textBaseline = "middle";
-        heartCtx.font = "900 " + Math.min(width * 0.54, height * 0.28, 220) + "px Arial, sans-serif";
-        heartCtx.shadowColor = "rgba(255,105,180,0.98)";
-        heartCtx.shadowBlur = 36;
-        heartCtx.fillStyle = "#fff";
-        heartCtx.fillText(String(count), width / 2, height / 2);
-        heartCtx.shadowColor = "rgba(255,20,120,0.75)";
-        heartCtx.shadowBlur = 88;
-        heartCtx.fillText(String(count), width / 2, height / 2);
-        heartCtx.restore();
-      }
-
-      function startCountdown() {
-        if (width <= 0 || height <= 0) {
-          resize();
-        }
-        if (width <= 0 || height <= 0) {
-          setTimeout(startCountdown, 300);
-          return;
-        }
-        drawCountdown();
-        var timer = setInterval(function () {
-          count -= 1;
-          if (count > 0) {
-            drawCountdown();
-            return;
-          }
-          clearInterval(timer);
-          counting = false;
-          heartCtx.clearRect(0, 0, width, height);
-          loveText.className = "love-text show";
-        }, 1000);
-      }
-
-      function drawStars(ctx) {
-        for (var i = 0; i < stars.length; i++) {
-          var star = stars[i];
-          var pulse = (Math.sin(frame * 0.035 + star.phase) + 1) * 0.5;
-          ctx.fillStyle = "rgba(255, 238, 244, " + (star.alpha * (0.35 + pulse * 0.65)) + ")";
-          ctx.beginPath();
-          ctx.arc(star.x, star.y, star.r * (0.8 + pulse * 0.5), 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      function drawHeartOutline(ctx) {
-        ctx.save();
-        ctx.globalCompositeOperation = "lighter";
-        for (var i = 0; i < heartDots.length; i++) {
-          var dot = heartDots[i];
-          var pulse = (Math.sin(frame * 0.08 + dot.phase) + 1) * 0.5;
-          var r = dot.r + pulse * 1.5;
-          ctx.fillStyle = "rgba(255, 248, 250, " + (0.8 + pulse * 0.2) + ")";
-          ctx.beginPath();
-          ctx.arc(dot.x, dot.y, r, 0, Math.PI * 2);
-          ctx.fill();
-          if (i % 4 === 0) {
-            ctx.fillStyle = "rgba(255, 78, 138, " + (0.3 + pulse * 0.24) + ")";
-            ctx.beginPath();
-            ctx.arc(dot.x, dot.y, r * 2.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-        ctx.restore();
-      }
-
-      function animate() {
-        frame += 1;
-        if (width <= 0 || height <= 0) {
-          requestAnimationFrame(animate);
-          return;
-        }
-        sceneCtx.globalCompositeOperation = "source-over";
-        sceneCtx.fillStyle = "rgba(0,0,0,0.18)";
-        sceneCtx.fillRect(0, 0, width, height);
-
-        if (!counting) {
-          drawStars(sceneCtx);
-          if (balloons.length < 22 && frame % 18 === 0) {
-            balloons.push(new Balloon());
-          }
-          for (var i = 0; i < balloons.length; i++) {
-            balloons[i].update();
-            balloons[i].draw(sceneCtx);
-          }
-          drawHeartOutline(sceneCtx);
-        }
-        requestAnimationFrame(animate);
-      }
-
-      function init() {
-        if (initialized) return;
-        initialized = true;
-
-        heartCanvas = document.getElementById("heartCanvas");
-        sceneCanvas = document.getElementById("scene");
-        loveText = document.getElementById("loveText");
-        heartCtx = heartCanvas.getContext("2d");
-        sceneCtx = sceneCanvas.getContext("2d");
-
-        resize();
-        if (width <= 0 || height <= 0) {
-          setTimeout(function () {
-            resize();
-            if (width <= 0 || height <= 0) {
-              width = 375;
-              height = 667;
-              resize();
-            }
-            startCountdown();
-          }, 500);
-        } else {
-          setTimeout(startCountdown, 650);
-        }
-
-        animate();
-        window.addEventListener("resize", resize);
-        document.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
-      }
-
-      if (typeof WeixinJSBridge !== "undefined" && WeixinJSBridge.invoke) {
-        init();
-      } else {
-        document.addEventListener("WeixinJSBridgeReady", init, false);
-        document.addEventListener("DOMContentLoaded", function () {
-          setTimeout(init, 300);
-        }, false);
-      }
-    })();
-  </script>
+window.addEventListener('load',start,false);
+setTimeout(function(){if(!started)start();},1200);
+</script>
 </body>
 </html>
